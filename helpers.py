@@ -24,7 +24,6 @@ def generate_asset_page(user_ticker):
     if os.path.exists(page_path):
         return
     
-
     content = f'''
 import streamlit as st
 import yfinance as yf
@@ -34,38 +33,44 @@ from datetime import datetime
 import feedparser
 from streamlit_autorefresh import st_autorefresh
 from helpers import get_transactions_for_asset
+from sidebar import render_sidebar
+
+render_sidebar()
 
 ticker = "{user_ticker}"
 st_autorefresh(interval=60000, key="refresh_{user_ticker}")
 
-
 st.title("📉 " + ticker + " – Asset Dashboard")
 
-# Asset Info
 info = yf.Ticker(ticker).info
+price_data = yf.Ticker(ticker).history(period="1d")
+price = price_data["Close"].iloc[-1] if not price_data.empty else None
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.subheader("🏢 Company Info")
-    st.markdown(f"**Name**: {{info.get('shortName', 'N/A')}}")
-    st.markdown(f"**Industry**: {{info.get('industry', 'N/A')}}")
-    st.markdown(f"**Sector**: {{info.get('sector', 'N/A')}}")
-    #st.markdown(info.get("longBusinessSummary", "No description available."))
+    st.markdown(f"**Name:** {{info.get('shortName', 'N/A')}}")
+    st.markdown(f"**Industry:** {{info.get('industry', 'N/A')}}")
+    st.markdown(f"**Sector:** {{info.get('sector', 'N/A')}}")
 
 with col2:
-    price = yf.Ticker(ticker).history(period="1d")["Close"].iloc[-1]
     st.subheader("💰 Live Price")
-    st.metric(label=ticker + " Price", value=f"${{price:,.2f}}")
+    if price:
+        st.metric(label=f"{{ticker}} Price", value=f"${{price:,.2f}}")
+    else:
+        st.write("N/A")
 
 with col3:
     st.subheader("📊 Key Financials")
-    st.write(f"**Market Cap**: ${{info.get('marketCap', 0):,}}")
-    st.write(f"**P/E Ratio**: {{info.get('trailingPE', 'N/A')}}")
-    st.write(f"**Dividend Yield**: {{info.get('dividendYield', 0) * 100:.2f}}%")
+    market_cap = info.get('marketCap')
+    pe_ratio = info.get('trailingPE')
+    dividend_yield = info.get('dividendYield')
 
+    st.metric(label="Market Cap", value=f"${{market_cap:,}}" if market_cap else "N/A", help="The total value of all a company's shares of stock.")
+    st.metric(label="P/E Ratio", value=f"{{pe_ratio:.2f}}" if pe_ratio else "N/A", help="Price-to-Earnings ratio: shows how much investors are willing to pay per dollar of earnings.")
+    st.metric(label="Dividend Yield", value=f"{{dividend_yield * 100:.2f}}%" if dividend_yield else "N/A", help="How much a company returns to shareholders as dividends, annually as a % of stock price.")
 
-# Timeframe selector
 st.header("📊 Price Trend")
 timeframe = st.radio("Select timeframe:", ["7 Days", "1 Month", "1 Year"], horizontal=True)
 period_map = {{
@@ -82,25 +87,21 @@ try:
 except Exception as e:
     st.warning("Error loading chart: " + str(e))
 
-# Transaction history
 st.header("🧾 Your Transactions for This Asset")
 txns = get_transactions_for_asset(ticker)
-# Unrealized Gain/Loss
+
 if not txns.empty:
     total_cost = (txns['price'] * txns['shares']).sum()
     total_shares = txns['shares'].sum()
     avg_buy_price = total_cost / total_shares if total_shares else 0
     gain = ((price - avg_buy_price) / avg_buy_price) * 100 if avg_buy_price else 0
-    st.metric("📈 Unrealized Return", f"{{gain:.2f}}%", delta=f"${{price - avg_buy_price:.2f}}")
-
-
-if txns.empty:
-    st.info("No transactions for this asset yet.")
+    st.metric("📈 Unrealized Return", f"{{gain:.2f}}%", delta=f"${{price - avg_buy_price:.2f}}", help="Your % return if you sold at the current price vs. what you paid.")
 else:
+    st.info("No transactions for this asset yet.")
+
+if not txns.empty:
     st.dataframe(txns)
 
-
-# News Section Placeholder
 st.header("📰 Latest News on " + ticker)
 try:
     rss = feedparser.parse(f"https://finance.yahoo.com/rss/headline?s={{ticker}}")
@@ -112,6 +113,7 @@ try:
 except Exception as e:
     st.warning("Error fetching news: " + str(e))
 '''
+
 
 
     try:

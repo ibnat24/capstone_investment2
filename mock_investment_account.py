@@ -13,11 +13,17 @@ from helpers import generate_asset_page
 import requests
 from bs4 import BeautifulSoup
 import finnhub
+import sidebar
 
 # --------------------------
 # Auto-refresh every 60 seconds
 # --------------------------
 st_autorefresh(interval=60000, key="refresh")
+
+# --------------------------
+# Sidebar
+# --------------------------
+sidebar.render_sidebar()
 
 # --------------------------
 # Initialize session state
@@ -146,49 +152,6 @@ theme_map = {
     "SPY": "Index ETF", "QQQ": "Index ETF"
 }
 
-# --------------------------
-# Sidebar
-# --------------------------
-with st.sidebar:
-    st.header("📘 Learn the Basics")
-    with st.expander("🧠 Tech"):
-        st.markdown("Fast-growing companies like Apple (AAPL), Microsoft (MSFT), and Nvidia.")
-    with st.expander("💼 ETFs"):
-        st.markdown("Bundles of stocks — safer for beginners (e.g., SPY, QQQ).")
-    with st.expander("🏦 Banking"):
-        st.markdown("Big banks like JPMorgan (JPM) and Bank of America (BAC).")
-    with st.expander("🌱 Green Energy"):
-        st.markdown("Clean energy companies (e.g., ICLN, TSLA, ENPH).")
-    with st.expander("🔥 Crypto"):
-        st.markdown("Digital assets like Bitcoin (BTC) and Ethereum (ETH). Highly volatile!")
-    st.markdown("---")
-    st.header("🔥 Trending Stocks")
-
-    trending_tickers = fetch_trending_stocks()
-
-    for symbol in trending_tickers:
-        info = get_stock_info(symbol)
-        if info:
-            st.subheader(f"{info['symbol']} – ${info['price']:.2f}" if info['price'] else info['symbol'])
-            st.caption(f"**{info['name']}** ({info['sector']})")
-            st.markdown(f"<small>{info['summary'][:100]}...</small>", unsafe_allow_html=True)
-        else:
-            st.error(f"{symbol} info not available.")
-        st.markdown("---")
-
-    # Set up client
-    finnhub_client = finnhub.Client(api_key="d1vsb5pr01qmbi8pt1cgd1vsb5pr01qmbi8pt1d0")
-
-    # Get general stock market news
-    news = finnhub_client.general_news('general', min_id=0)
-
-    # Display top 5 in Streamlit
-    st.header("📰 Stock Market News")
-    for article in news[:5]:
-        st.markdown(f"**[{article['headline']}]({article['url']})**")
-        st.caption(article['summary'][:100] + "...")
-
-
 
 # --------------------------
 # Main App Interface
@@ -201,6 +164,8 @@ nasdaq_df["label"] = nasdaq_df["Symbol"] + " - " + nasdaq_df["Company Name"]
 selected_label = st.selectbox("Select a stock:", nasdaq_df["label"])
 user_ticker = selected_label.split(" - ")[0]
 price = get_live_price(user_ticker)
+
+
 
 if price:
     st.success(f"{user_ticker} current price: ${price:.2f}")
